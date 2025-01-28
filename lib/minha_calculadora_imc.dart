@@ -12,8 +12,9 @@ class CalculadoraImc extends StatefulWidget {
 }
 
 class _CalculadoraImcState extends State<CalculadoraImc> {
-  late TextEditingController pesoController;
-  late TextEditingController alturaController;
+  final TextEditingController pesoController = TextEditingController();
+  final TextEditingController alturaController = TextEditingController();
+
   double _valorPeso = 50;
   double _valorAltura = 1.6;
 
@@ -23,9 +24,8 @@ class _CalculadoraImcState extends State<CalculadoraImc> {
 
   @override
   void initState() {
-    pesoController = TextEditingController(text: _valorPeso.toString());
-    alturaController = TextEditingController(text: _valorAltura.toString());
     super.initState();
+    _updateControllers();
   }
 
   @override
@@ -35,115 +35,111 @@ class _CalculadoraImcState extends State<CalculadoraImc> {
     super.dispose();
   }
 
+  void _updateControllers() {
+    pesoController.text = _valorPeso.toStringAsFixed(2);
+    alturaController.text = _valorAltura.toStringAsFixed(2);
+  }
+
+  void _updateValue(String type, double value) {
+    setState(() {
+      if (type == 'peso') {
+        _valorPeso = value;
+      } else if (type == 'altura') {
+        _valorAltura = value;
+      }
+      _updateControllers();
+    });
+  }
+
+  void _calcularIMC() {
+    final peso = double.tryParse(pesoController.text) ?? 0;
+    final altura = double.tryParse(alturaController.text) ?? 0;
+
+    if (peso <= 0 || altura <= 0) {
+      // Mostrar uma mensagem de erro ao usuário
+      return;
+    }
+
+    setState(() {
+      imc = peso / (altura * altura);
+      classificacao = getClassificacaoImc(imc);
+      corResultado = getCorImc(imc);
+    });
+  }
+
+  String getClassificacaoImc(double? imc) {
+    if (imc == null) return 'Inválido';
+    if (imc < 18.5) return 'Abaixo do Peso';
+    if (imc <= 24.9) return 'Peso Normal';
+    if (imc <= 29.9) return 'Sobrepeso';
+    if (imc <= 34.9) return 'Obesidade Grau I';
+    if (imc <= 39.9) return 'Obesidade Grau II';
+    return 'Obesidade Grau III';
+  }
+
+  Color getCorImc(double? imc) {
+    if (imc == null) return Colors.grey;
+    if (imc < 18.5) return Colors.blue;
+    if (imc <= 24.9) return Colors.lightGreen;
+    if (imc <= 29.9) return Colors.orange;
+    if (imc <= 34.9) return Colors.orangeAccent;
+    if (imc <= 39.9) return Colors.redAccent;
+    return Colors.red;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[300],
-      body: SizedBox(
-        width: double.infinity,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            imc == null
-                ? AlertMessage()
-                : InfoImc(
-                    corResultado: corResultado,
-                    imc: imc,
-                    classificacao: classificacao),
-            SizedBox(
-              height: 40,
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AjusteValoresInput(
-                  label: 'Seu Peso',
-                  sufixoLabel: 'kg',
-                  width: 85,
-                  controller: pesoController,
-                  onChanged: (peso) {
-                    setState(() {
-                      _valorPeso = peso;
-                      pesoController.text = _valorPeso.toStringAsFixed(2);
-                    });
-                  },
-                  value: _valorPeso,
-                  valorMinimo: 20,
-                  valorMaximo: 300,
-                  divisions: 280,
-                ),
-                SizedBox(
-                  width: 22,
-                ),
-                AjusteValoresInput(
+      body: SingleChildScrollView(
+        child: SizedBox(
+          width: double.infinity,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              imc == null
+                  ? const AlertMessage()
+                  : InfoImc(
+                      corResultado: corResultado,
+                      imc: imc,
+                      classificacao: classificacao,
+                    ),
+              const SizedBox(height: 40),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AjusteValoresInput(
+                    label: 'Seu Peso',
+                    sufixoLabel: 'kg',
+                    width: 85,
+                    controller: pesoController,
+                    onChanged: (peso) => _updateValue('peso', peso),
+                    value: _valorPeso,
+                    valorMinimo: 20,
+                    valorMaximo: 300,
+                    divisions: 280,
+                  ),
+                  const SizedBox(width: 22),
+                  AjusteValoresInput(
                     label: 'Sua altura',
                     sufixoLabel: 'm',
                     width: 85,
                     controller: alturaController,
-                    onChanged: (altura) {
-                      setState(() {
-                        _valorAltura = altura;
-                        alturaController.text = _valorAltura.toStringAsFixed(2);
-                      });
-                    },
+                    onChanged: (altura) => _updateValue('altura', altura),
                     value: _valorAltura,
                     valorMinimo: 0.5,
                     valorMaximo: 3.0,
-                    divisions: 250),
-              ],
-            ),
-            SizedBox(
-              height: 22,
-            ),
-            BotaoCalcularImc(onPressed: () {
-              double peso = pesoController.text != ''
-                  ? double.parse(pesoController.text)
-                  : 0;
-              double altura = alturaController.text != ''
-                  ? double.parse(alturaController.text)
-                  : 0;
-              setState(() {
-                imc = peso / (altura * altura);
-                classificacao = getClassificacaoImc(imc);
-                corResultado = getCorImc(imc);
-              });
-            })
-          ],
+                    divisions: 250,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              BotaoCalcularImc(onPressed: _calcularIMC),
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  String getClassificacaoImc(double? imc) {
-    if (imc! < 18.5) {
-      return 'Abaixo do Peso';
-    } else if (imc > 18.5 && imc < 24.9) {
-      return 'Peso Normal';
-    } else if (imc > 25.0 && imc < 29.9) {
-      return 'Sobrepeso';
-    } else if (imc > 30.0 && imc < 34.9) {
-      return 'Obesidade Grau I';
-    } else if (imc > 35.0 && imc < 39.9) {
-      return 'Obesidade Grau II';
-    } else {
-      return 'Obesidade Grau III';
-    }
-  }
-
-  Color getCorImc(double? imc) {
-    if (imc! < 18.5) {
-      return Colors.blue;
-    } else if (imc > 18.5 && imc < 24.9) {
-      return Colors.lightGreen;
-    } else if (imc > 25.0 && imc < 29.9) {
-      return Colors.orange;
-    } else if (imc > 30.0 && imc < 34.9) {
-      return Colors.orangeAccent;
-    } else if (imc > 35.0 && imc < 39.9) {
-      return Colors.redAccent;
-    } else {
-      return Colors.red;
-    }
   }
 }
